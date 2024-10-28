@@ -15,6 +15,8 @@ sprites = [
 ]
 
 air_pollution = 0
+wind_speed = 0
+bee_speed = 5
 
 class Bee(pygame.sprite.Sprite): #class to display bee sprite
     def __init__(self):
@@ -24,10 +26,12 @@ class Bee(pygame.sprite.Sprite): #class to display bee sprite
         self.image = self.sprites[self.current_sprite]
         self.rect = self.image.get_rect()
         self.rect.center = (100, 100)
-        self.speed = 5
+        self.speed = bee_speed
+
+
     def update(self):
-        global air_pollution
-        self.speed = max(1, 5 - air_pollution // 20)
+        #global air_pollution
+        #self.speed = max(1, 5 - air_pollution // 20)
     # change sprite position
         self.current_sprite += 0.2
         if self.current_sprite >= len(self.sprites):
@@ -38,9 +42,12 @@ class Bee(pygame.sprite.Sprite): #class to display bee sprite
 
         if self.rect.x > width:
              self.rect.x = 0
+
+
 bee1 = Bee()
+clock = pygame.time.Clock()
+
 simulator = True
-clock = pygame.time.Clock() #manage framerate
 while simulator :
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
@@ -50,18 +57,25 @@ while simulator :
              if event.key == pygame.K_PLUS or event.key == pygame.K_KP_PLUS:
                   air_pollution = min(100, air_pollution + 10)
              elif event.key == pygame.K_MINUS or event.key == pygame.K_KP_MINUS:
-                  air_pollution = max(100, air_pollution - 10)
+                  air_pollution = max(0, air_pollution - 10)
+
+    wind_speed = air_pollution / 2
+    bee1.speed = max(1, bee_speed - wind_speed / 20)
     #draw background and sprite
     screen.blit(bckgr, (0, 0))
     bee1.update()
-
     screen.blit(bee1.image, bee1.rect)
+    #level
+    pygame.draw.rect(screen, (0, 0, 255), (50, 50, wind_speed * 2, 20))  # Jauge bleue pour le vent
+    pygame.draw.rect(screen, (255, 255, 0), (50, 80, bee1.speed * 20, 20))
 
-    #display air pollution level
-    font = pygame.font.Font(None, 36)
-    text = font.render('Air Pollution: {air_pollution}', True, (255, 255, 255))
-    screen.blit(text, (10, 10))
+    #level text
+    font = pygame.font.Font(None, 24)
+    text_wind = font.render(f'Vitesse du Vent: {wind_speed}', True, (255, 255, 255))
+    text_bee = font.render(f'Vitesse de l\'Abeille: {bee1.speed}', True, (255, 255, 255))
+    screen.blit(text_wind, (50, 30))
+    screen.blit(text_bee, (50, 110))
 
     pygame.display.flip()
-    clock.tick(220) 
+    clock.tick(60) 
 pygame.quit()
