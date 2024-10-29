@@ -1,11 +1,13 @@
 import pygame
+import random
+
 pygame.init()
 width = 800
 height = 400
 screen = pygame.display.set_mode((width, height))
 bckgr = pygame.image.load('bckgr_simu2.jpeg')
 
-#screen.blit(bckgr, (0, 0))
+# Load and resize bee sprites
 sprites = [
     pygame.transform.scale(pygame.image.load('bee_1.png').convert_alpha(), (50, 50)),
     pygame.transform.scale(pygame.image.load('bee_2.png').convert_alpha(), (50, 50)),
@@ -17,65 +19,107 @@ sprites = [
 air_pollution = 0
 wind_speed = 0
 bee_speed = 5
+particles = pygame.sprite.Group()
+flowers = pygame.sprite.Group()
 
-class Bee(pygame.sprite.Sprite): #class to display bee sprite
+class Bee(pygame.sprite.Sprite):
     def __init__(self):
         super().__init__()
-        self.sprites = sprites # accessprite list
-        self.current_sprite = 0 # Actual sprite index
+        self.sprites = sprites
+        self.current_sprite = 0
         self.image = self.sprites[self.current_sprite]
         self.rect = self.image.get_rect()
         self.rect.center = (100, 100)
-        self.speed = bee_speed
-
+        self.base_speed = bee_speed
+        self.speed = self.base_speed
 
     def update(self):
-        #global air_pollution
-        #self.speed = max(1, 5 - air_pollution // 20)
-    # change sprite position
+        # Alternate sprites
         self.current_sprite += 0.2
         if self.current_sprite >= len(self.sprites):
-                self.current_sprite = 0
+            self.current_sprite = 0
         self.image = self.sprites[int(self.current_sprite)]
-        #bee moves
-        self.rect.x += self.speed
 
+        # Bee movement
+        self.rect.x += int(self.speed)
         if self.rect.x > width:
-             self.rect.x = 0
+            self.rect.x = 0
 
+class Particle(pygame.sprite.Sprite):
+    def __init__(self, x, y):
+        super().__init__()
+        self.image = pygame.Surface((5, 5))
+        self.image.fill((200, 200, 200))
+        self.rect = self.image.get_rect(center=(x, y))
+        # particle's random speed  
+        self.vx = random.choice([-1, 1]) * random.uniform(0.5, 1.5)
+        self.vy = random.choice([-1, 1]) * random.uniform(0.5, 1.5)
+
+    def update(self):
+        # Move the particle and bounce against the edges
+        self.rect.x += self.vx
+        self.rect.y += self.vy
+        if self.rect.left < 0 or self.rect.right > width:
+            self.vx *= -1
+        if self.rect.top < 0 or self.rect.bottom > height:
+            self.vy *= -1
+
+class Flower(pygame.sprite.Sprite):
+    def __init__(self, x, y):
+        super().__init__()
+        self.image = pygame.image.load("flower.jpeg").convert_alpha()
+        self.image = pygame.transform.scale(self.image, (40, 40))
+        self.image.set_colorkey((255, 255, 255))  # Rendre le blanc transparent
+        self.rect = self.image.get_rect(center=(x, y))
+
+# create particles and flowers
+for _ in range(80):
+    particle = Particle(random.randint(0, width), random.randint(0, height))
+    particles.add(particle)
+
+for _ in range(1):
+    flower = Flower(random.randint(50, width - 50), random.randint(50, height - 50))
+    flowers.add(flower)
 
 bee1 = Bee()
 clock = pygame.time.Clock()
 
 simulator = True
-while simulator :
+while simulator:
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             simulator = False
-            #ajust air pollution
+        # Increase air pollution
         if event.type == pygame.KEYDOWN:
-             if event.key == pygame.K_PLUS or event.key == pygame.K_KP_PLUS:
-                  air_pollution = min(100, air_pollution + 10)
-             elif event.key == pygame.K_MINUS or event.key == pygame.K_KP_MINUS:
-                  air_pollution = max(0, air_pollution - 10)
+            if event.key == pygame.K_p:
+                air_pollution = min(100, air_pollution + 10)
 
-    wind_speed = air_pollution / 2
-    bee1.speed = max(1, bee_speed - wind_speed / 20)
-    #draw background and sprite
+    # Adjusting bee speed based on air pollution
+    bee1.speed = max(1, bee1.base_speed - (air_pollution / 20))
+
+    # collisions
+    if pygame.sprite.spritecollideany(bee1, particles):
+        bee1.speed = max(1, bee1.speed - 0.1)
+
+    # draw elements
     screen.blit(bckgr, (0, 0))
+    flowers.draw(screen)
+    particles.update()  # Update particle position
+    particles.draw(screen)
     bee1.update()
     screen.blit(bee1.image, bee1.rect)
-    #level
-    pygame.draw.rect(screen, (0, 0, 255), (50, 50, wind_speed * 2, 20))  # Jauge bleue pour le vent
+
+    # Drawing the gauges
+    pygame.draw.rect(screen, (0, 0, 255), (50, 50, air_pollution * 2, 20))
     pygame.draw.rect(screen, (255, 255, 0), (50, 80, bee1.speed * 20, 20))
 
-    #level text
     font = pygame.font.Font(None, 24)
-    text_wind = font.render(f'Vitesse du Vent: {wind_speed}', True, (255, 255, 255))
-    text_bee = font.render(f'Vitesse de l\'Abeille: {bee1.speed}', True, (255, 255, 255))
-    screen.blit(text_wind, (50, 30))
-    screen.blit(text_bee, (50, 110))
+    text_pollution = font.render(f'Niveau de Pollution: {air_pollution}', True, (255, 255, 255))
+    text_bee_speed = font.render(f'Vitesse de l\'Abeille: {bee1.speed:.1f}', True, (255, 255, 255))
+    screen.blit(text_pollution, (50, 30))
+    screen.blit(text_bee_speed, (50, 110))
 
     pygame.display.flip()
-    clock.tick(60) 
+    clock.tick(60)
+
 pygame.quit()
